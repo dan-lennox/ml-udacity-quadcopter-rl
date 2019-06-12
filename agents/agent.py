@@ -26,19 +26,37 @@ class DDPG():
         self.actor_target.model.set_weights(self.actor_local.model.get_weights())
 
         # Noise process
+        #originals
         self.exploration_mu = 0
         self.exploration_theta = 0.15
         self.exploration_sigma = 0.2
+        
+        #self.exploration_mu = 1
+        #self.exploration_theta = 0.01 # THE GOOD RESULT
+        #self.exploration_sigma = 0.7 # THE GOOD RESULT
+        
+        #self.exploration_mu = 0.9
+        #self.exploration_theta = 0.9
+        #self.exploration_sigma = 1.2
+        
         self.noise = OUNoise(self.action_size, self.exploration_mu, self.exploration_theta, self.exploration_sigma)
 
         # Replay memory
-        self.buffer_size = 100000
-        self.batch_size = 64
+        self.buffer_size = 100000 # THE GOOD RESULT
+        #self.buffer_size = 200000
+        #self.batch_size = 64 # THE GOOD RESULT
+        self.batch_size = 128
+        #self.batch_size = 32
         self.memory = ReplayBuffer(self.buffer_size, self.batch_size)
 
         # Algorithm parameters
         self.gamma = 0.99  # discount factor
-        self.tau = 0.01  # for soft update of target parameters
+        #self.gamma = 0.8  # discount factor
+        self.tau = 0.01  # for soft update of target parameters # IMPROVED RESULT
+        #self.tau = 0.005 # latest improvement breakthrough.
+        #self.tau = 0.05
+        #self.tau = 0.0005
+        #self.tau = 0.5 # THE GOOD RESULT - helps converge faster?
 
     def reset_episode(self):
         self.noise.reset()

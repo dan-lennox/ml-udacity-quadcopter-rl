@@ -21,10 +21,6 @@ class Actor:
         self.action_range = self.action_high - self.action_low
 
         # Initialize any other variables here
-        #self.learning_rate = 0.001
-        #self.learning_rate = 0.01
-        #self.learning_rate = 0.0001 # THE GOOD RESULT
-        #self.learning_rate = 0.00001 #improved
         self.learning_rate = 0.000001
 
         self.build_model()
@@ -35,21 +31,8 @@ class Actor:
         states = layers.Input(shape=(self.state_size,), name='states')
         # Add hidden layers
         net = layers.Dense(units=32, activation='relu')(states)
-        #net = layers.Dropout(0.2)(net)
-        #kernel_regularizer=regularizers.l2(0.1)
         net = layers.Dense(units=64, activation='relu')(net)
-        #kernel_regularizer=regularizers.l2(0.01)
-        #net = layers.Dropout(0.1)(net)
-        #net = layers.Dense(units=64, activation='relu')(net) #added by me
-        net = layers.Dense(units=32, activation='relu')(net) # ORIGIONAL
-        #net = layers.Dense(units=128, activation='relu')(net)
-        #net = layers.Dropout(0.1)(net)
-
-        # Try different layer sizes, activations, add batch normalization, regularizers, etc.
-        # @TODO: Added this... seemed to reduce the wild fluctuation in reward. NEEDS MORE TESTING
-        #net = layers.BatchNormalization()(net)
-        
-        #net = layers.GaussianNoise(0.2)(net)
+        net = layers.Dense(units=32, activation='relu')(net)
 
         # Add final output layer with sigmoid activation
         raw_actions = layers.Dense(units=self.action_size, activation='sigmoid',
@@ -65,10 +48,6 @@ class Actor:
         # Define loss function using action value (Q value) gradients
         action_gradients = layers.Input(shape=(self.action_size,))
         loss = K.mean(-action_gradients * actions)
-
-        # @toto: RECORD AND GRAPH THE LOSS AND DEBUG.
-        #self.loss = K.print_tensor(loss)
-        # Incorporate any additional losses here (e.g. from regularizers)
 
         # Define optimizer and training function
         #optimizer = optimizers.Adam()

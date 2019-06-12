@@ -6,7 +6,7 @@ import math
 class Task():
     """Task (environment) that defines the goal and provides feedback to the agent."""
     def __init__(self, init_pose=None, init_velocities=None, 
-        init_angle_velocities=None, runtime=5., target_pos=None):
+        init_angle_velocities=None, runtime=5., target_pos=None, debug=False):
         """Initialize a Task object.
         Params
         ======
@@ -18,7 +18,7 @@ class Task():
         """
         # Simulation
         self.sim = PhysicsSim(init_pose, init_velocities, init_angle_velocities, runtime) 
-        self.action_repeat = 3
+        self.action_repeat = 3 # Good RESULT
 
         self.state_size = self.action_repeat * 6
 
@@ -26,14 +26,15 @@ class Task():
         # Min value of each action dimension
         self.action_low = 0
         # Max value of each action dimension
-        #self.action_high = 900
-        #self.action_high = 900
-        self.action_high = 1500
+        self.action_high = 900
+        #self.action_high = 1100
 
         #This is the 4 motors... don't change.
         self.action_size = 4 
         
         self.phase = 0
+        
+        self.debug = debug
 
         # Goal
         self.target_pos = target_pos if target_pos is not None else np.array([0., 0., 10.]) 
@@ -47,8 +48,7 @@ class Task():
         # This is kind of like "taking chess pieces"... free rewards... not great?
         #reward = 1.-.9*(abs(self.sim.pose[:3] - self.target_pos)).sum()
         
-        # Euclidean distance. Source?
-        reward = 1-np.linalg.norm(self.sim.pose[:3]-self.target_pos)
+       
         
         #print(reward);
         
@@ -57,10 +57,11 @@ class Task():
         
         # print(self.sim.pose)
         #z_distance = abs(self.target_pos[2] - self.sim.pose[2])
-        distance = abs(self.sim.pose[:3] - self.target_pos)
+        #distance = abs(self.sim.pose[:3] - self.target_pos)
 
         
-        
+        #if ((self.sim.v).sum() < 3):
+        #    reward = reward * 0.5
     
         #sys.stdout.flush()
         #print('\r z position', self.sim.pose[2])#, 'z distance', z_distance, 'z target', self.target_pos[2])
@@ -124,20 +125,84 @@ class Task():
         #else:
         #    reward = 0
         
+         # Euclidean distance. Source?
+        #distance = abs(np.linalg.norm(self.sim.pose[:3]-self.target_pos))
+        #reward = 1/distance
+        #reward = -abs(np.linalg.norm(self.sim.pose[:3]-self.target_pos))
+        #reward = -np.linalg.norm(self.sim.pose[:3]-self.target_pos)
+        #reward = -np.linalg.norm(self.sim.pose[:3]-self.target_pos)
+        #reward = np.clip(2.-.25*(np.linalg.norm(self.sim.pose[:3]-self.target_pos)), -1, 1)
+        
+        distance = abs(self.sim.pose[:3] - self.target_pos)
+        
+        #print('max', max(distance))
+        
+        # Emphasis penalty on further distances.
+        # How to emphasis reward on better results?
+        ec_dist = abs(np.linalg.norm(self.sim.pose[:3]-self.target_pos)) # THE GOOD RESULT
+        #reward = (1-(np.power(max(distance), 2) / 100) + 2) * 2
+        reward = (1-(np.power(ec_dist, 2) / 100) + 2) # THE GOOD RESULT
+        #reward = 1-ec_dist
+        #reward = 1-ec_dist
+        
+        
+        
+#        if (ec_dist < 5):
+ #           reward
+        
+        #print(distance);
+        #print(reward)
+        #print('relu', (abs(reward) + reward))
+        
+        #print(np.linalg.norm(self.sim.pose[:3]-self.target_pos));
+        #print(-np.tanh(reward))
+        #print(distance.sum());
+        #print(np.tanh(np.sinh(reward)));
+        #print('----------')
+        
         # End the episode if we reach the target.
         # Maybe remove this AFTER I can reach targets, then I can work on hovering.
-        if ([distance[0] < 1, distance[1] < 1, distance[2] < 1].count(True) == 3):
-            #print('REACHED TARGET THIS EPISODE')
+        reached_target = ([distance[0] < 1, distance[1] < 1, distance[2] < 1].count(True) == 3);
+        if (reached_target):
+        #if (reward > -2):
+            if (self.debug):
+                print('REACHED TARGET THIS EPISODE')
+            #print('distance', distance)
+            #print('reward', reward)
+            # THIS IS WORKING CORRECTY. VERIFIED IN TRAINER.
             self.sim.done = True
             # Makes sense.. no more "future rewards" for the agent to consider and abuse.
-            return 5
+            return 100
         # Check if done is true before the runtime finished
         # crash penalty! https://github.com/WittmannF/quadcopter-best-practices
         elif (self.sim.done and self.sim.runtime > self.sim.time):
-            #print('CRASHED')    
-            return -5 
+            if (self.debug):
+                print('\nCRASHED')
+            #print('distance', distance)
+            #print('reward', reward)
+            # THIS IS WORKING CORRECTY. VERIFIED IN TRAINER.
+            #return -100
         
+        # Give reward for not crashing?
+        if ((self.sim.runtime - self.sim.time) < 0):
+            if (reward < 0):
+                reward = reward / 2
+            if (reward > 0):
+                reward = reward * 2
+            #reward += 2
+            if (self.debug):
+                print('\nNO CRASH')
+            #print(self.sim.runtime - self.sim.time)
+            #reward = reward + 10
         
+       
+        
+        #print('vel', np.mean(self.sim.v))
+        #if (np.mean(self.sim.v > 0) and np.mean(self.sim.v < 1)):
+        #   reward = reward + 2
+        
+        # ReLu activation for positive rewards.
+        return (abs(reward) + reward) / 2 #np.tanh(reward)
         
             #velocity discount?
      
@@ -177,7 +242,7 @@ class Task():
         
         # tanh scales reward to -1 to 1.
         #return reward
-        return np.tanh(reward)
+   
 
     def step(self, rotor_speeds):
         """Uses action to obtain next state, reward, done."""
@@ -188,6 +253,7 @@ class Task():
             reward += self.get_reward() 
             pose_all.append(self.sim.pose)
         next_state = np.concatenate(pose_all)
+        
         return next_state, reward, done
 
     def reset(self):

@@ -1,4 +1,4 @@
-from keras import layers, models, optimizers
+from keras import layers, models, optimizers, regularizers
 from keras import backend as K
 
 class Critic:
@@ -16,6 +16,10 @@ class Critic:
         self.action_size = action_size
 
         # Initialize any other variables here
+        #self.learning_rate = 0.001;
+        #self.learning_rate = 0.0001; # THE GOOD RESULT
+        #self.learning_rate = 0.00001; #improve1
+        self.learning_rate = 0.000001
 
         self.build_model()
 
@@ -26,20 +30,42 @@ class Critic:
         actions = layers.Input(shape=(self.action_size,), name='actions')
 
         # Add hidden layer(s) for state pathway
-        net_states = layers.Dense(units=32, activation='relu')(states)
-        net_states = layers.Dense(units=64, activation='relu')(net_states)
+        net_states = layers.Dense(units=32, activation='relu')(states) # THE GOOD RESULT
+        #net_states = layers.Dense(units=16, activation='relu')(states)
+        #net_states = layers.Dropout(0.2)(net_states)
+        net_states = layers.Dense(units=64, activation='relu')(net_states) # THE GOOD RESULT
+        #net_states = layers.Dense(units=32, activation='relu')(states)
+        net_states = layers.Dropout(0.1)(net_states)
+        #net_states = layers.Dense(units=64, activation='relu')(net_states) #added by me
+        #net_states = layers.Dropout(0.2)(net_states)
+        
+        #net_states = layers.GaussianNoise(0.2)(net_states)
 
         # Add hidden layer(s) for action pathway
-        net_actions = layers.Dense(units=32, activation='relu')(actions)
-        net_actions = layers.Dense(units=64, activation='relu')(net_actions)
+        net_actions = layers.Dense(units=32, activation='relu')(actions) # THE GOOD RESULT
+        #net_actions = layers.Dense(units=16, activation='relu')(actions)
+        #net_actions = layers.Dropout(0.2)(net_actions)
+        #net_actions = layers.Dropout(0.1)(net_actions)
+        #kernel_regularizer=regularizers.l2(0.1)
+        net_actions = layers.Dense(units=64, activation='relu')(net_actions) # THE GOOD RESULT
+        #net_actions = layers.Dense(units=32, activation='relu')(actions)
+        net_states = layers.Dropout(0.1)(net_states)
+        #net_actions = layers.Dense(units=64, activation='relu')(net_actions) #added by me
+        #net_states = layers.Dropout(0.2)(net_states)
 
+        #net_actions = layers.GaussianNoise(0.2)(net_actions)
+        
         # Try different layer sizes, activations, add batch normalization, regularizers, etc.
+        #net_states = layers.BatchNormalization()(net_states)
+        #net_actions = layers.BatchNormalization()(net_actions)
 
         # Combine state and action pathways
         net = layers.Add()([net_states, net_actions])
         net = layers.Activation('relu')(net)
 
         # Add more layers to the combined network if needed
+        
+        # @toto: GRAPH THE LOSS AND DEBUG.
 
         # Add final output layer to prduce action values (Q values)
         Q_values = layers.Dense(units=1, name='q_values')(net)
@@ -48,7 +74,7 @@ class Critic:
         self.model = models.Model(inputs=[states, actions], outputs=Q_values)
 
         # Define optimizer and compile model for training with built-in loss function
-        optimizer = optimizers.Adam()
+        optimizer = optimizers.Adam(lr=self.learning_rate)
         self.model.compile(optimizer=optimizer, loss='mse')
 
         # Compute action gradients (derivative of Q values w.r.t. to actions)
